@@ -1,0 +1,32 @@
+//Modulo RTC para controle de tempo e programação de acionamento de lâmpada 220V
+#include <RTClib.h>
+//inclusão das bibliotecas necessárias
+#include <Wire.h>
+#include <LiquidCrystal.h>
+#include "RTClib.h"
+
+int led = 9; //definindo o pino para programar a lâmpada
+RTC_DS1307 rtc; //definindo qual módulo da biblioteca será usado
+
+void setup (){
+ rtc.begin(); //aciona o módulo rtc
+ DateTime hour = rtc.now(); //define a variavel hour como a leitura do rtc
+ pinMode(9,OUTPUT); //define o pino de saída no arduino como 9 para ligar a lâmpada
+ rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //atualiza automaticamente o horário de
+acordo com o horário do computador utilizado para progamação
+}
+
+void loop (){
+DateTime now = rtc.now(); //define a variável now com a leitura do rtc
+if (now.hour() == 18) // se o horário atual for 18
+{digitalWrite(led,LOW); // o LED é desligado
+} 
+57
+else if (now.hour() >= 8 && now.hour() < 18) // se o horário atual for maior ou igual a 8 horas
+o led acende
+//se o horário for menor que 18 ele apaga
+{
+digitalWrite(led,HIGH); //definindo quando ligar a saída 9
+}
+delay (50);
+}
