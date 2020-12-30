@@ -1,0 +1,155 @@
+//incluindo bibliotecas
+#include <Servo.h> //Biblioteca para os 2 servos motores
+#include <LiquidCrystal.h> //Biblioteca para LCD
+
+// pinagem da biblioteca para o lcd
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2); //entradas no arduino
+Servo acid1;//criando um objeto para controlar o servo 1 acido
+Servo base1; //criando um objeto para controlar o servo 3 basico
+
+int pos = 0; // define variável posição como 0
+int posb = 0; //define a variável posição b como 0
+int estado1 = 0; //variável definindo a posição dos servos acidos
+int estado2 = 0; //variável definindo a posição dos servos basicos
+int botao = 8; //define o pino do botão
+int contador = 0; //zera o contador
+int contadorb = 0; //zera o contador b
+int pinoSensorLuz = A2; //define o pino em que o LDR será conectado
+int valorLuz = 0; //define variavel do valor do LDR como 0
+int LDR = 0; //define variável do valor LDR com modificações como 0
+int ph_pin = A0; //This is the pin number connected to Po
+int calibrar = 6; //define o pino do botao
+int voltage = 0;
+
+void setup() {
+ // linhas e colunas do lcd:
+ lcd.begin(16, 2);
+ // colocando cursor na coluna 0 e linha 0
+ lcd.setCursor(0, 0);
+ // mensagem de pH.
+ lcd.print("pH =");
+ // colocando cursor na coluna 0 e linha 1
+ lcd.setCursor(0, 1);
+ // mensagem de temperatura
+ lcd.print("Temp =");
+ //Mensagem de início do monitor
+ Serial.println("Valores de potenciometro e sensor");
+ //Comunicação serial
+ acid1.attach(7);// coloca o servo no pino 7 para o objeto do servo
+ base1.attach(10);// coloca o servo no pino 10 para o objeto do servo
+ pinMode(A0,INPUT); // coloca como input o sensor de pH
+ pinMode (A1, INPUT); // coloca como input o sensor de temperatura
+ pinMode (botao, OUTPUT); //define pino do botão como saída
+ pinMode(pinoSensorLuz,INPUT); //define pino do LDR como entrada
+ Serial.begin(9600); //inicia o monitor serial
+}
+
+void loop() {
+ //CALIBRAGEM
+ if (digitalRead(calibrar)== HIGH){ //se o botao for pressionado
+ int measure = analogRead(ph_pin);
+ Serial.print("Measure: ");
+ Serial.print(measure); //comeca a mediçao
+ double voltage = 5 / 1024.0 * measure; //classic digital to voltage conversion
+ Serial.print("\tVoltage: ");
+ Serial.print(voltage, 3); //tensao
+ // PH_step = (voltage@PH7 - voltage@PH4) / (PH7 - PH4)
+ // PH_probe = PH7 - ((voltage@PH7 - voltage@probe) / PH_step)
+ float Po = 7 + ((2.5 - voltage) / 0.18);
+ Serial.print("\tPH: ");
+ Serial.print(Po, 3);
+ Serial.println("");
+ }
+else if (voltage >= 2.50 && voltage <= 2.53){
+Serial.print("Calibrado!");
+}
+ else{
+// leitura do valor pin A0
+ valorLuz = analogRead(pinoSensorLuz); //le o valor do LDR
+ LDR = map(valorLuz, 1023, 0, 0, 100); //transforma a variação em porcentagem
+ int valor = analogRead(A0); //Lendo resultados de saída analógica A0
+ float volt = float(valor) / 1023 * 5.0; //convertendo resposta do sensor de temperatura para
+volts
+ float pHValue = 2.63 * volt - 0.36; //convertendo valor de tensão para escala de pH
+
+ if (pHValue > 7.4 && pos == 0){ //caso o ph esteja maior do que 7.4 e o servo esteja em 0
+ for (pos = 0; pos <= 180; pos += 1){ // servo vai de 0 graus a 180 graus em passos de 1
+grau
+ pos = 180; //trava o servo em 180 graus
+51
+ acid1.write(pos); //servo acido 1 na posição 0
+ }
+ }
+ if (LDR >= 15 && pHValue>7.4) //caso a variação do valor do LDR seja maior do que
+15%
+ {
+ contador++; //adiciona mais um no contador (contando gotas)
+ }
+ if (contador >= 7) //se o contador chegar a 7 gotas
+ {
+ pos = 0; //define a variável como 0
+ for(pos = 180; pos >= 0; pos -= 1){ // servo vai de 180 graus a 0 graus
+ acid1.write(pos);// fala para o servo básico 3 ir para a posição "pos"
+ delay(100); //espera 10ms para o servo atingir a posição
+ contador = 0; //zera o contador
+ contadorb = 0; //zera o contador b
+ posb = 0; //zera a variavel posição b
+ }
+ delay(14400000); //delay de 4 horas
+ pos = 0; //zera a variável posição
+ }
+ 
+ if (pHValue<6.8 && posb == 0 ){ //valor do pH for menor que 6.8, realizar rotina abaixo
+ for (posb = 0; posb <= 180; posb += 1){ //motor vai de 0 a 180 graus em passos de 1 grau
+ posb = 180; //trava o motor em 180 graus
+52
+ base1.write(posb); //comando para o servo ir para a posição "posb"
+ }
+ }
+ if (LDR >= 15 && pHValue<6.8) //se o LDR estiver com uma variação maior do que 15 e o
+pH for menor do que 6.8
+ {
+ contadorb++; //conta mais um no contadorb
+ }
+ if (contadorb >= 7) //se o contador b for maior ou igual a 7 (gotas)
+ {
+ posb = 0; //zera a variável
+ for(posb = 180; posb >= 0; posb-= 1){ // servo vai de 180 graus a 0 graus
+ base1.write(posb);// fala para o servo ir para a posição "pos"
+ delay(100); //espera 10ms para o servo atingir a posição
+ contadorb = 0; //zera o contador b
+ contador = 0; //zera o contador
+ pos = 0; //zera a variável posição
+ }
+ 
+ delay(14400000); //delay de 4 horas definido pelo fabricante do produto para segurança dos
+peixes
+ posb = 0; // zera a variável posição b
+ }
+ 
+// leitura do valor pin A1
+ int tmp = analogRead(A1);
+ // Conversão do valor para mV
+53
+ float mv = (5000 / 1023.0) * tmp;
+ // Conversão de mV para graus celsius
+ float Temp = mv / 10;
+ 
+ //Imprime no monitor serie
+ Serial.print("Volts = ");
+ Serial.println(volt);
+ Serial.print("pH = "); //imprime “pH=” no display
+ Serial.println(pHValue); // imprime o valor da variável pHValue no display
+ Serial.print ("Temperatura = "); //imprime “Temperatura=” no display
+ Serial.println (Temp); // imprime o valor da variável Temp no display
+ 
+ // colocando cursor na coluna 5 e linha 0
+ lcd.setCursor(5, 0);
+ // printa dado do sensor pH:
+ lcd.println(pHValue);
+ // colocando cursor na coluna 7 e linha 1
+ lcd.setCursor(7, 1);
+ // printa dado do sensor de temperatura:
+ lcd.println(Temp);
+}
+}
